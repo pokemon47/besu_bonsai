@@ -20,6 +20,7 @@ import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.StorageSlotKey;
 import org.hyperledger.besu.ethereum.core.MutableWorldState;
+import org.hyperledger.besu.ethereum.proof.hashing.ProofPathHashingHolder;
 import org.hyperledger.besu.ethereum.trie.MerkleTrie;
 import org.hyperledger.besu.ethereum.trie.MerkleTrieException;
 import org.hyperledger.besu.ethereum.trie.NoOpMerkleTrie;
@@ -106,7 +107,8 @@ public class BonsaiWorldState extends PathBasedWorldState {
 
   @Override
   public Optional<Bytes> getCode(@NotNull final Address address, final Hash codeHash) {
-    return getWorldStateStorage().getCode(codeHash, address.addressHash());
+    return getWorldStateStorage()
+        .getCode(codeHash, ProofPathHashingHolder.get().accountTrieKey(address));
   }
 
   @Override
@@ -207,7 +209,8 @@ public class BonsaiWorldState extends PathBasedWorldState {
           for (final Map.Entry<Address, PathBasedValue<Bytes>> codeUpdate :
               worldStateUpdater.getCodeToUpdate().entrySet()) {
             final Bytes updatedCode = codeUpdate.getValue().getUpdated();
-            final Hash accountHash = codeUpdate.getKey().addressHash();
+            final Hash accountHash =
+                ProofPathHashingHolder.get().accountTrieKey(codeUpdate.getKey());
             final Bytes priorCode = codeUpdate.getValue().getPrior();
 
             // code hasn't changed then do nothing
@@ -237,7 +240,7 @@ public class BonsaiWorldState extends PathBasedWorldState {
       final Map.Entry<Address, StorageConsumingMap<StorageSlotKey, PathBasedValue<UInt256>>>
           storageAccountUpdate) {
     final Address updatedAddress = storageAccountUpdate.getKey();
-    final Hash updatedAddressHash = updatedAddress.addressHash();
+    final Hash updatedAddressHash = ProofPathHashingHolder.get().accountTrieKey(updatedAddress);
     if (worldStateUpdater.getAccountsToUpdate().containsKey(updatedAddress)) {
       final PathBasedValue<BonsaiAccount> accountValue =
           worldStateUpdater.getAccountsToUpdate().get(updatedAddress);
@@ -307,7 +310,7 @@ public class BonsaiWorldState extends PathBasedWorldState {
       // because we are clearing persisted values we need the account root as persisted
       final BonsaiAccount oldAccount =
           getWorldStateStorage()
-              .getAccount(address.addressHash())
+              .getAccount(ProofPathHashingHolder.get().accountTrieKey(address))
               .map(
                   bytes ->
                       BonsaiAccount.fromRLP(BonsaiWorldState.this, address, bytes, true, codeCache))
@@ -317,7 +320,7 @@ public class BonsaiWorldState extends PathBasedWorldState {
         // block. A not-uncommon DeFi bot pattern.
         continue;
       }
-      final Hash addressHash = address.addressHash();
+      final Hash addressHash = ProofPathHashingHolder.get().accountTrieKey(address);
       final MerkleTrie<Bytes, Bytes> storageTrie =
           createTrie(
               (location, key) -> getStorageTrieNode(addressHash, location, key),
@@ -346,7 +349,7 @@ public class BonsaiWorldState extends PathBasedWorldState {
             maybeStateUpdater.ifPresent(
                 bonsaiUpdater ->
                     bonsaiUpdater.removeStorageValueBySlotHash(
-                        address.addressHash(), storageSlotKey.getSlotHash()));
+                        addressHash, storageSlotKey.getSlotHash()));
             storageToDelete
                 .computeIfAbsent(storageSlotKey, key -> new PathBasedValue<>(slotValue, null, true))
                 .setPrior(slotValue);
@@ -381,7 +384,7 @@ public class BonsaiWorldState extends PathBasedWorldState {
   @Override
   public Account get(final Address address) {
     return getWorldStateStorage()
-        .getAccount(address.addressHash())
+        .getAccount(ProofPathHashingHolder.get().accountTrieKey(address))
         .map(bytes -> BonsaiAccount.fromRLP(accumulator, address, bytes, true, codeCache))
         .orElse(null);
   }
@@ -414,7 +417,8 @@ public class BonsaiWorldState extends PathBasedWorldState {
   public Optional<UInt256> getStorageValueByStorageSlotKey(
       final Address address, final StorageSlotKey storageSlotKey) {
     return getWorldStateStorage()
-        .getStorageValueByStorageSlotKey(address.addressHash(), storageSlotKey)
+        .getStorageValueByStorageSlotKey(
+            ProofPathHashingHolder.get().accountTrieKey(address), storageSlotKey)
         .map(UInt256::fromBytes);
   }
 
@@ -423,7 +427,8 @@ public class BonsaiWorldState extends PathBasedWorldState {
       final Address address,
       final StorageSlotKey storageSlotKey) {
     return getWorldStateStorage()
-        .getStorageValueByStorageSlotKey(storageRootSupplier, address.addressHash(), storageSlotKey)
+        .getStorageValueByStorageSlotKey(
+            storageRootSupplier, ProofPathHashingHolder.get().accountTrieKey(address), storageSlotKey)
         .map(UInt256::fromBytes);
   }
 
@@ -436,7 +441,10 @@ public class BonsaiWorldState extends PathBasedWorldState {
   public Map<Bytes32, Bytes> getAllAccountStorage(final Address address, final Hash rootHash) {
     final MerkleTrie<Bytes, Bytes> storageTrie =
         createTrie(
-            (location, key) -> getStorageTrieNode(address.addressHash(), location, key), rootHash);
+            (location, key) ->
+                getStorageTrieNode(
+                    ProofPathHashingHolder.get().accountTrieKey(address), location, key),
+            rootHash);
     return storageTrie.entriesFrom(Bytes32.ZERO, Integer.MAX_VALUE);
   }
 
@@ -461,8 +469,8 @@ public class BonsaiWorldState extends PathBasedWorldState {
   }
 
   protected Hash hashAndSavePreImage(final Bytes value) {
-    // by default do not save has preImages
-    return Hash.hash(value);
+    // by default do not save hash preimages
+    return ProofPathHashingHolder.get().accountTrieKey(Address.wrap(value));
   }
 
   @Override

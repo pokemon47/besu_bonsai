@@ -18,6 +18,7 @@ import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.chain.BlockAddedEvent;
 import org.hyperledger.besu.ethereum.chain.BlockAddedObserver;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
+import org.hyperledger.besu.ethereum.proof.hashing.ProofPathHashingHolder;
 import org.hyperledger.besu.ethereum.trie.pathbased.common.storage.PathBasedWorldStateKeyValueStorage;
 import org.hyperledger.besu.ethereum.trie.pathbased.common.trielog.TrieLogManager;
 import org.hyperledger.besu.metrics.BesuMetricCategory;
@@ -157,7 +158,7 @@ public class BonsaiArchiver implements BlockAddedObserver {
                                 rootWorldStateStorage.archivePreviousAccountState(
                                     blockchain.getBlockHeader(
                                         blockchain.getBlockHeader(blockHash).get().getParentHash()),
-                                    address.addressHash()));
+                                    ProofPathHashingHolder.get().accountTrieKey(address)));
                           });
                   LOG.atDebug()
                       .setMessage("Archiving all storage state for block {}")
@@ -179,7 +180,8 @@ public class BonsaiArchiver implements BlockAddedObserver {
                                                   .get()
                                                   .getParentHash()),
                                           Bytes.concatenate(
-                                              address.addressHash(), slotKey.getSlotHash())));
+                                              ProofPathHashingHolder.get().accountTrieKey(address),
+                                              slotKey.getSlotHash())));
                                 });
                           });
                 }

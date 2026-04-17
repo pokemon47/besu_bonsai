@@ -621,7 +621,7 @@ public abstract class BesuControllerBuilder implements MiningConfigurationOverri
     prepForBuild();
 
     final ProtocolSchedule protocolSchedule = createProtocolSchedule();
-    configureProofPathHashingForForestBeforeGenesis();
+    configureProofPathHashingBeforeGenesis();
 
     final VariablesStorage variablesStorage = storageProvider.createVariablesStorage();
 
@@ -952,13 +952,15 @@ public abstract class BesuControllerBuilder implements MiningConfigurationOverri
                     dataStorageConfiguration, genesisConfig, protocolSchedule, codeCache));
   }
 
-  private void configureProofPathHashingForForestBeforeGenesis() {
-    if (DataStorageFormat.FOREST.equals(dataStorageConfiguration.getDataStorageFormat())) {
+  private void configureProofPathHashingBeforeGenesis() {
+    if (DataStorageFormat.FOREST.equals(dataStorageConfiguration.getDataStorageFormat())
+        || DataStorageFormat.X_BONSAI_ARCHIVE_PROOFS.equals(
+            dataStorageConfiguration.getDataStorageFormat())) {
       // Configure before genesis creation so the genesis header's state root and the persisted
       // genesis world state are produced under the same hash policy.
       // Without this early initialization, Poseidon mode can fail at replay block 1 when trying
       // to load parent (genesis) world state by state root.
-      ProofPathHashingConfigurator.configureForForestFromSystemProperties();
+      ProofPathHashingConfigurator.configureFromSystemProperties();
     }
   }
 

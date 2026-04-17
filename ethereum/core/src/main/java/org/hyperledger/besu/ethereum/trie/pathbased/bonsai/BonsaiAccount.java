@@ -22,6 +22,7 @@ import org.hyperledger.besu.ethereum.rlp.RLP;
 import org.hyperledger.besu.ethereum.rlp.RLPException;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
+import org.hyperledger.besu.ethereum.proof.hashing.ProofPathHashingHolder;
 import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.storage.BonsaiWorldStateKeyValueStorage;
 import org.hyperledger.besu.ethereum.trie.pathbased.common.PathBasedAccount;
 import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.PathBasedWorldView;
@@ -63,7 +64,7 @@ public class BonsaiAccount extends PathBasedAccount {
     super(
         context,
         address,
-        address.addressHash(),
+        ProofPathHashingHolder.get().accountTrieKey(address),
         stateTrieAccount.getNonce(),
         stateTrieAccount.getBalance(),
         stateTrieAccount.getCodeHash(),
@@ -130,7 +131,7 @@ public class BonsaiAccount extends PathBasedAccount {
     return new BonsaiAccount(
         context,
         address,
-        address.addressHash(),
+        ProofPathHashingHolder.get().accountTrieKey(address),
         nonce,
         balance,
         storageRoot,

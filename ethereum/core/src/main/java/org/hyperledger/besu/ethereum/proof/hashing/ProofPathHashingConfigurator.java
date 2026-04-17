@@ -17,9 +17,9 @@ package org.hyperledger.besu.ethereum.proof.hashing;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/** Configures proof-path hashing policy for Forest mode from runtime properties. */
+/** Configures proof-path hashing policy from runtime properties. */
 public final class ProofPathHashingConfigurator {
-  /** System property that selects the proof-path hashing policy for Forest mode. */
+  /** System property that selects the proof-path hashing policy. */
   public static final String PROOF_PATH_HASHING_PROPERTY = "besu.experimental.proof-path-hashing";
 
   private static final AtomicBoolean CONFIGURED = new AtomicBoolean(false);
@@ -30,9 +30,9 @@ public final class ProofPathHashingConfigurator {
    * Configures the active proof-path hashing policy from JVM system properties.
    *
    * <p>The property defaults to {@code keccak}. When set to {@code poseidon2}, the temporary
-   * phase-4 Poseidon2 placeholder policy is installed for Forest-mode proof-path hashing.
+   * phase-4 Poseidon2 placeholder policy is installed for proof-path hashing.
    */
-  public static void configureForForestFromSystemProperties() {
+  public static void configureFromSystemProperties() {
     if (!CONFIGURED.compareAndSet(false, true)) {
       return;
     }
@@ -43,5 +43,10 @@ public final class ProofPathHashingConfigurator {
     } else {
       ProofPathHashingHolder.set(new KeccakProofPathHashing());
     }
+  }
+
+  /** Backward-compatible alias for Forest-focused callers. */
+  public static void configureForForestFromSystemProperties() {
+    configureFromSystemProperties();
   }
 }

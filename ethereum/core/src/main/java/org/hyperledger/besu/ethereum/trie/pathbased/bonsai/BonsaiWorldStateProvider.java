@@ -17,6 +17,7 @@ package org.hyperledger.besu.ethereum.trie.pathbased.bonsai;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
+import org.hyperledger.besu.ethereum.proof.hashing.ProofPathHashingHolder;
 import org.hyperledger.besu.ethereum.rlp.RLP;
 import org.hyperledger.besu.ethereum.trie.common.PmtStateTrieAccountValue;
 import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.cache.BonsaiCachedMerkleTrieLoader;
@@ -122,7 +123,7 @@ public class BonsaiWorldStateProvider extends PathBasedWorldStateProvider {
     final Set<Bytes> keysToDelete = new HashSet<>();
     final BonsaiWorldStateKeyValueStorage.Updater updater =
         getBonsaiWorldStateKeyValueStorage().updater();
-    final Hash accountHash = address.addressHash();
+    final Hash accountHash = ProofPathHashingHolder.get().accountTrieKey(address);
     final StoredMerklePatriciaTrie<Bytes, Bytes> accountTrie =
         new StoredMerklePatriciaTrie<>(
             (l, h) -> {

@@ -19,6 +19,7 @@ import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.StorageSlotKey;
 import org.hyperledger.besu.datatypes.Wei;
+import org.hyperledger.besu.ethereum.proof.hashing.ProofPathHashingHolder;
 import org.hyperledger.besu.ethereum.rlp.RLP;
 import org.hyperledger.besu.ethereum.trie.MerkleTrieException;
 import org.hyperledger.besu.ethereum.trie.pathbased.common.PathBasedAccount;
@@ -917,13 +918,13 @@ public abstract class PathBasedWorldStateUpdateAccumulator<ACCOUNT extends PathB
 
   protected Hash hashAndSaveAccountPreImage(final Address address) {
     // no need to save account preimage by default
-    return Hash.hash(address);
+    return ProofPathHashingHolder.get().accountTrieKey(address);
   }
 
   protected Hash hashAndSaveSlotPreImage(final UInt256 slotKey) {
     Hash hash = storageKeyHashLookup.get(slotKey);
     if (hash == null) {
-      hash = Hash.hash(slotKey);
+      hash = ProofPathHashingHolder.get().storageTrieKey(slotKey);
       storageKeyHashLookup.put(slotKey, hash);
     }
     return hash;
