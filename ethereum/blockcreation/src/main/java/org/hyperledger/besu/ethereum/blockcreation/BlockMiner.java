@@ -113,6 +113,19 @@ public class BlockMiner<M extends AbstractBlockCreator> implements Runnable {
   }
 
   /**
+   * Rebuild a replay block from source block inputs without scheduler-derived header drift.
+   *
+   * @param parentHeader The header of the replay parent block.
+   * @param sourceBlock The source block whose header/body inputs drive replay.
+   * @return the rebuilt replay block.
+   */
+  public BlockCreationResult createBlockForReplay(
+      final BlockHeader parentHeader, final Block sourceBlock) {
+    final M blockCreator = this.blockCreatorFactory.apply(parentHeader);
+    return blockCreator.createBlockForReplay(parentHeader, sourceBlock);
+  }
+
+  /**
    * Create a block with the given timestamp.
    *
    * @param parentHeader The header of the parent of the block to be produced

@@ -114,6 +114,18 @@ public interface MiningCoordinator {
    */
   Optional<Block> createBlock(final BlockHeader parentHeader, final long timestamp);
 
+  /**
+   * Creates a replay block by preserving source header/body inputs where applicable.
+   *
+   * @param parentHeader The replay parent block header
+   * @param sourceBlock The source block used as replay input
+   * @return If supported, returns the block that was created, otherwise an empty response.
+   */
+  default Optional<Block> createBlockForReplay(
+      final BlockHeader parentHeader, final Block sourceBlock) {
+    throw new UnsupportedOperationException("Replay block creation is not supported.");
+  }
+
   default void addEthHashObserver(final PoWObserver observer) {}
 
   void changeTargetGasLimit(final Long targetGasLimit);

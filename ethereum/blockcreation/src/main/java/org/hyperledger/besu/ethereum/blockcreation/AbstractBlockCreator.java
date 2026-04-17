@@ -31,6 +31,7 @@ import org.hyperledger.besu.ethereum.core.BlockBody;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.core.BlockHeaderBuilder;
 import org.hyperledger.besu.ethereum.core.BlockHeaderFunctions;
+import org.hyperledger.besu.ethereum.core.Difficulty;
 import org.hyperledger.besu.ethereum.core.MiningConfiguration;
 import org.hyperledger.besu.ethereum.core.MutableWorldState;
 import org.hyperledger.besu.ethereum.core.ProcessableBlockHeader;
@@ -191,6 +192,48 @@ public abstract class AbstractBlockCreator implements AsyncBlockCreator {
       final long timestamp,
       final boolean rewardCoinbase,
       final BlockHeader parentHeader) {
+    return createBlock(
+        maybeTransactions,
+        maybeOmmers,
+        maybeWithdrawals,
+        maybePrevRandao,
+        maybeParentBeaconBlockRoot,
+        timestamp,
+        rewardCoinbase,
+        parentHeader,
+        Optional.empty());
+  }
+
+  public BlockCreationResult createBlockForReplay(
+      final BlockHeader parentHeader, final Block sourceBlock) {
+    final BlockHeader sourceHeader = sourceBlock.getHeader();
+    final boolean mergeStyle = sourceHeader.getDifficulty().equals(Difficulty.ZERO);
+    final Optional<Bytes32> replayPrevRandao =
+        mergeStyle
+            ? Optional.of(sourceHeader.getPrevRandao().orElse(sourceHeader.getMixHash()))
+            : Optional.empty();
+    return createBlock(
+        Optional.of(sourceBlock.getBody().getTransactions()),
+        Optional.of(sourceBlock.getBody().getOmmers()),
+        sourceBlock.getBody().getWithdrawals(),
+        replayPrevRandao,
+        sourceHeader.getParentBeaconBlockRoot(),
+        sourceHeader.getTimestamp(),
+        !mergeStyle,
+        parentHeader,
+        Optional.of(ReplayHeaderOverrides.fromSourceHeader(sourceHeader)));
+  }
+
+  private BlockCreationResult createBlock(
+      final Optional<List<Transaction>> maybeTransactions,
+      final Optional<List<BlockHeader>> maybeOmmers,
+      final Optional<List<Withdrawal>> maybeWithdrawals,
+      final Optional<Bytes32> maybePrevRandao,
+      final Optional<Bytes32> maybeParentBeaconBlockRoot,
+      final long timestamp,
+      final boolean rewardCoinbase,
+      final BlockHeader parentHeader,
+      final Optional<ReplayHeaderOverrides> replayHeaderOverrides) {
 
     final var timings = new BlockCreationTiming();
 
@@ -199,15 +242,31 @@ public abstract class AbstractBlockCreator implements AsyncBlockCreator {
       final ProtocolSpec newProtocolSpec =
           protocolSchedule.getForNextBlockHeader(parentHeader, timestamp);
 
-      final ProcessableBlockHeader processableBlockHeader =
-          createPending(
-                  newProtocolSpec,
-                  parentHeader,
-                  miningConfiguration,
-                  timestamp,
-                  maybePrevRandao,
-                  maybeParentBeaconBlockRoot)
-              .buildProcessableBlockHeader();
+      final ProcessableBlockHeader processableBlockHeader;
+      if (replayHeaderOverrides.isPresent()) {
+        processableBlockHeader =
+            BlockHeaderBuilder.create()
+                .parentHash(parentHeader.getHash())
+                .coinbase(replayHeaderOverrides.get().coinbase())
+                .difficulty(replayHeaderOverrides.get().difficulty())
+                .number(parentHeader.getNumber() + 1)
+                .gasLimit(replayHeaderOverrides.get().gasLimit())
+                .timestamp(timestamp)
+                .baseFee(replayHeaderOverrides.get().baseFee().orElse(null))
+                .prevRandao(maybePrevRandao.orElse(null))
+                .parentBeaconBlockRoot(maybeParentBeaconBlockRoot.orElse(null))
+                .buildProcessableBlockHeader();
+      } else {
+        processableBlockHeader =
+            createPending(
+                    newProtocolSpec,
+                    parentHeader,
+                    miningConfiguration,
+                    timestamp,
+                    maybePrevRandao,
+                    maybeParentBeaconBlockRoot)
+                .buildProcessableBlockHeader();
+      }
 
       final Address miningBeneficiary =
           miningBeneficiaryCalculator.getMiningBeneficiary(timestamp, processableBlockHeader);
@@ -324,7 +383,10 @@ public abstract class AbstractBlockCreator implements AsyncBlockCreator {
               .receiptsRoot(BodyValidation.receiptsRoot(transactionResults.getReceipts()))
               .logsBloom(BodyValidation.logsBloom(transactionResults.getReceipts()))
               .gasUsed(transactionResults.getCumulativeGasUsed())
-              .extraData(extraDataCalculator.get(parentHeader))
+              .extraData(
+                  replayHeaderOverrides
+                      .map(ReplayHeaderOverrides::extraData)
+                      .orElseGet(() -> extraDataCalculator.get(parentHeader)))
               .withdrawalsRoot(
                   withdrawalsCanBeProcessed
                       ? BodyValidation.withdrawalsRoot(maybeWithdrawals.get())
@@ -340,7 +402,21 @@ public abstract class AbstractBlockCreator implements AsyncBlockCreator {
 
       final SealableBlockHeader sealableBlockHeader = builder.buildSealableBlockHeader();
 
-      final BlockHeader blockHeader = createFinalBlockHeader(sealableBlockHeader);
+      final BlockHeader blockHeader;
+      if (replayHeaderOverrides.flatMap(ReplayHeaderOverrides::powMixHash).isPresent()
+          && replayHeaderOverrides.flatMap(ReplayHeaderOverrides::powNonce).isPresent()) {
+        // Replay preserves the source PoW seal so the block header does not drift because of local
+        // re-mining.
+        blockHeader =
+            BlockHeaderBuilder.create()
+                .populateFrom(sealableBlockHeader)
+                .mixHash(replayHeaderOverrides.flatMap(ReplayHeaderOverrides::powMixHash).get())
+                .nonce(replayHeaderOverrides.flatMap(ReplayHeaderOverrides::powNonce).get())
+                .blockHeaderFunctions(blockHeaderFunctions)
+                .buildBlockHeader();
+      } else {
+        blockHeader = createFinalBlockHeader(sealableBlockHeader);
+      }
 
       final Optional<List<Withdrawal>> withdrawals =
           withdrawalsCanBeProcessed ? maybeWithdrawals : Optional.empty();
@@ -515,6 +591,27 @@ public abstract class AbstractBlockCreator implements AsyncBlockCreator {
 
   protected abstract BlockHeader createFinalBlockHeader(
       final SealableBlockHeader sealableBlockHeader);
+
+  private record ReplayHeaderOverrides(
+      Address coinbase,
+      Difficulty difficulty,
+      long gasLimit,
+      Bytes extraData,
+      Optional<Wei> baseFee,
+      Optional<Hash> powMixHash,
+      Optional<Long> powNonce) {
+    private static ReplayHeaderOverrides fromSourceHeader(final BlockHeader sourceHeader) {
+      final boolean hasPowSeal = sourceHeader.getDifficulty().greaterThan(Difficulty.ZERO);
+      return new ReplayHeaderOverrides(
+          sourceHeader.getCoinbase(),
+          sourceHeader.getDifficulty(),
+          sourceHeader.getGasLimit(),
+          sourceHeader.getExtraData(),
+          sourceHeader.getBaseFee(),
+          hasPowSeal ? Optional.of(sourceHeader.getMixHash()) : Optional.empty(),
+          hasPowSeal ? Optional.of(sourceHeader.getNonce()) : Optional.empty());
+    }
+  }
 
   @FunctionalInterface
   protected interface MiningBeneficiaryCalculator {
