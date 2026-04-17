@@ -126,6 +126,12 @@ public class MigratingMiningCoordinator implements MiningCoordinator, BlockAdded
   }
 
   @Override
+  public Optional<Block> createBlockForReplay(
+      final BlockHeader parentHeader, final Block sourceBlock) {
+    return activeMiningCoordinator.createBlockForReplay(parentHeader, sourceBlock);
+  }
+
+  @Override
   public void changeTargetGasLimit(final Long targetGasLimit) {
     activeMiningCoordinator.changeTargetGasLimit(targetGasLimit);
   }

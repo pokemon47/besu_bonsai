@@ -235,6 +235,18 @@ public class MergeCoordinator implements MergeMiningCoordinator, BadChainListene
   }
 
   @Override
+  public Optional<Block> createBlockForReplay(
+      final BlockHeader parentHeader, final Block sourceBlock) {
+    final BlockHeader sourceHeader = sourceBlock.getHeader();
+    LOG.info(
+        "Replay merge-aware header-preserving branch activated at source block {}",
+        sourceHeader.getNumber());
+    final MergeBlockCreator mergeBlockCreator =
+        this.mergeBlockCreatorFactory.forParams(parentHeader, Optional.of(sourceHeader.getCoinbase()));
+    return Optional.of(mergeBlockCreator.createBlockForReplay(parentHeader, sourceBlock).getBlock());
+  }
+
+  @Override
   public Optional<Block> createBlockForReplayMerge(
       final BlockHeader parentHeader,
       final List<Transaction> transactions,

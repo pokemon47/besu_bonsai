@@ -17,7 +17,6 @@ package org.hyperledger.besu.chainimport;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import org.hyperledger.besu.controller.BesuController;
-import org.hyperledger.besu.consensus.merge.blockcreation.MergeMiningCoordinator;
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.blockcreation.MiningCoordinator;
 import org.hyperledger.besu.ethereum.chain.MutableBlockchain;
@@ -27,7 +26,6 @@ import org.hyperledger.besu.ethereum.core.BlockHeaderFunctions;
 import org.hyperledger.besu.ethereum.core.BlockImporter;
 import org.hyperledger.besu.ethereum.core.Difficulty;
 import org.hyperledger.besu.ethereum.core.Transaction;
-import org.hyperledger.besu.ethereum.core.Withdrawal;
 import org.hyperledger.besu.ethereum.mainnet.BlockHeaderValidator;
 import org.hyperledger.besu.ethereum.mainnet.BlockImportResult;
 import org.hyperledger.besu.ethereum.mainnet.HeaderValidationMode;
@@ -51,7 +49,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Stopwatch;
-import org.apache.tuweni.bytes.Bytes32;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -311,55 +308,16 @@ public class RlpBlockImporter implements Closeable {
       final MiningCoordinator miningCoordinator,
       final BlockHeader replayParentHeader,
       final Block sourceBlock) {
-    if (isMergeReplayBlock(miningCoordinator, sourceBlock.getHeader())) {
-      LOG.info(
-          "Replay merge-aware creation branch activated at source block {}",
-          sourceBlock.getHeader().getNumber());
-      return createMergeReplayBlock(
-          (MergeMiningCoordinator) miningCoordinator, replayParentHeader, sourceBlock);
-    }
-
+    LOG.info(
+        "Replay header-preserving branch activated at source block {}",
+        sourceBlock.getHeader().getNumber());
     return miningCoordinator
-        .createBlock(
-            replayParentHeader,
-            sourceBlock.getBody().getTransactions(),
-            sourceBlock.getBody().getOmmers())
+        .createBlockForReplay(replayParentHeader, sourceBlock)
         .orElseThrow(
             () ->
                 new IllegalStateException(
                     "Unable to rebuild replay block from imported RLP block "
                         + sourceBlock.getHeader().getNumber()));
-  }
-
-  private boolean isMergeReplayBlock(
-      final MiningCoordinator miningCoordinator, final BlockHeader sourceHeader) {
-    return miningCoordinator instanceof MergeMiningCoordinator
-        && sourceHeader.getDifficulty().equals(Difficulty.ZERO);
-  }
-
-  private Block createMergeReplayBlock(
-      final MergeMiningCoordinator mergeMiningCoordinator,
-      final BlockHeader replayParentHeader,
-      final Block sourceBlock) {
-    final BlockHeader sourceHeader = sourceBlock.getHeader();
-    final Bytes32 prevRandao = sourceHeader.getPrevRandao().orElse(sourceHeader.getMixHash());
-    final long timestamp = sourceHeader.getTimestamp();
-    final Optional<List<Withdrawal>> withdrawals = sourceBlock.getBody().getWithdrawals();
-    final Optional<Bytes32> parentBeaconBlockRoot = sourceHeader.getParentBeaconBlockRoot();
-
-    return mergeMiningCoordinator
-        .createBlockForReplayMerge(
-            replayParentHeader,
-            sourceBlock.getBody().getTransactions(),
-            prevRandao,
-            timestamp,
-            withdrawals,
-            parentBeaconBlockRoot)
-        .orElseThrow(
-            () ->
-                new IllegalStateException(
-                    "Unable to rebuild replay merge block from imported RLP block "
-                        + sourceHeader.getNumber()));
   }
 
   private void evaluateReplayBlock(

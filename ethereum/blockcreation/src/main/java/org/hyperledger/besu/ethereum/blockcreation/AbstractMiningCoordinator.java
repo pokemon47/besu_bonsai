@@ -80,6 +80,13 @@ public abstract class AbstractMiningCoordinator<
   }
 
   @Override
+  public Optional<Block> createBlockForReplay(
+      final BlockHeader parentHeader, final Block sourceBlock) {
+    final M miner = executor.createMiner(minedBlockObservers, ethHashObservers, parentHeader);
+    return Optional.of(miner.createBlockForReplay(parentHeader, sourceBlock).getBlock());
+  }
+
+  @Override
   public void start() {
     synchronized (this) {
       if (state != State.IDLE) {
