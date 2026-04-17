@@ -20,6 +20,7 @@ import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.core.MutableWorldState;
 import org.hyperledger.besu.ethereum.mainnet.staterootcommitter.StateRootCommitter;
+import org.hyperledger.besu.ethereum.proof.hashing.ProofPathHashingHolder;
 import org.hyperledger.besu.ethereum.rlp.RLP;
 import org.hyperledger.besu.ethereum.rlp.RLPException;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
@@ -70,7 +71,7 @@ public class ForestMutableWorldState implements MutableWorldState {
       final WorldStatePreimageStorage preimageStorage,
       final EvmConfiguration evmConfiguration) {
     this(
-        MerkleTrie.EMPTY_TRIE_NODE_HASH,
+        MerkleTrie.currentEmptyTrieNodeHash(),
         worldStateKeyValueStorage,
         preimageStorage,
         evmConfiguration);
@@ -129,7 +130,7 @@ public class ForestMutableWorldState implements MutableWorldState {
 
   @Override
   public Account get(final Address address) {
-    final Hash addressHash = address.addressHash();
+    final Hash addressHash = ProofPathHashingHolder.get().accountTrieKey(address);
     return accountStateTrie
         .get(addressHash)
         .map(bytes -> deserializeAccount(address, addressHash, bytes))
@@ -317,7 +318,7 @@ public class ForestMutableWorldState implements MutableWorldState {
     @Override
     public UInt256 getStorageValue(final UInt256 key) {
       return storageTrie()
-          .get(Hash.hash(key))
+          .get(ProofPathHashingHolder.get().storageTrieKey(key))
           .map(ForestMutableWorldState::convertToUInt256)
           .orElse(UInt256.ZERO);
     }
@@ -351,7 +352,8 @@ public class ForestMutableWorldState implements MutableWorldState {
      */
     @Override
     public boolean isStorageEmpty() {
-      return Hash.EMPTY_TRIE_HASH.equals(
+      final Hash emptyTrieHash = Hash.wrap(MerkleTrie.currentEmptyTrieNodeHash());
+      return emptyTrieHash.equals(
           storageTrie == null ? getStorageRoot() : storageTrie.getRootHash());
     }
 
@@ -384,7 +386,7 @@ public class ForestMutableWorldState implements MutableWorldState {
     @Override
     protected WorldStateAccount getForMutation(final Address address) {
       final ForestMutableWorldState wrapped = wrappedWorldView();
-      final Hash addressHash = address.addressHash();
+      final Hash addressHash = ProofPathHashingHolder.get().accountTrieKey(address);
       return wrapped
           .accountStateTrie
           .get(addressHash)
@@ -413,7 +415,7 @@ public class ForestMutableWorldState implements MutableWorldState {
       final ForestMutableWorldState wrapped = wrappedWorldView();
 
       for (final Address address : getDeletedAccounts()) {
-        final Hash addressHash = address.addressHash();
+        final Hash addressHash = ProofPathHashingHolder.get().accountTrieKey(address);
         wrapped.accountStateTrie.remove(addressHash);
         wrapped.updatedStorageTries.remove(address);
         wrapped.updatedAccountCode.remove(address);
@@ -429,7 +431,8 @@ public class ForestMutableWorldState implements MutableWorldState {
         }
         // ...and storage in the account trie first.
         final boolean freshState = origin == null || updated.getStorageWasCleared();
-        Hash storageRoot = freshState ? Hash.EMPTY_TRIE_HASH : origin.getStorageRoot();
+        final Hash emptyTrieHash = Hash.wrap(MerkleTrie.currentEmptyTrieNodeHash());
+        Hash storageRoot = freshState ? emptyTrieHash : origin.getStorageRoot();
         if (freshState) {
           wrapped.updatedStorageTries.remove(updated.getAddress());
         }
@@ -438,7 +441,7 @@ public class ForestMutableWorldState implements MutableWorldState {
           // Apply any storage updates
           final MerkleTrie<Bytes32, Bytes> storageTrie =
               freshState
-                  ? wrapped.newAccountStorageTrie(Hash.EMPTY_TRIE_HASH)
+                  ? wrapped.newAccountStorageTrie(Hash.wrap(MerkleTrie.currentEmptyTrieNodeHash()))
                   : origin.storageTrie();
           wrapped.updatedStorageTries.put(updated.getAddress(), storageTrie);
           final TreeSet<Map.Entry<UInt256, UInt256>> entries =
@@ -447,7 +450,7 @@ public class ForestMutableWorldState implements MutableWorldState {
 
           for (final Map.Entry<UInt256, UInt256> entry : entries) {
             final UInt256 value = entry.getValue();
-            final Hash keyHash = Hash.hash(entry.getKey());
+            final Hash keyHash = ProofPathHashingHolder.get().storageTrieKey(entry.getKey());
             if (value.isZero()) {
               storageTrie.remove(keyHash);
             } else {
@@ -460,12 +463,14 @@ public class ForestMutableWorldState implements MutableWorldState {
         }
 
         // Save address preimage
-        wrapped.newAccountKeyPreimages.put(updated.getAddressHash(), updated.getAddress());
+        final Hash accountTrieKey =
+            ProofPathHashingHolder.get().accountTrieKey(updated.getAddress());
+        wrapped.newAccountKeyPreimages.put(accountTrieKey, updated.getAddress());
         // Lastly, save the new account.
         final Bytes account =
             serializeAccount(updated.getNonce(), updated.getBalance(), storageRoot, codeHash);
 
-        wrapped.accountStateTrie.put(updated.getAddressHash(), account);
+        wrapped.accountStateTrie.put(accountTrieKey, account);
       }
     }
 

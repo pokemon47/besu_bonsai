@@ -50,7 +50,7 @@ public abstract class StoredMerkleTrie<K extends Bytes, V> implements MerkleTrie
    * @param nodeFactory The {@link StoredNodeFactory} to retrieve node.
    */
   public StoredMerkleTrie(final NodeFactory<V> nodeFactory) {
-    this(nodeFactory, EMPTY_TRIE_NODE_HASH);
+    this(nodeFactory, MerkleTrie.currentEmptyTrieNodeHash());
   }
 
   /**
@@ -64,8 +64,9 @@ public abstract class StoredMerkleTrie<K extends Bytes, V> implements MerkleTrie
   public StoredMerkleTrie(
       final NodeFactory<V> nodeFactory, final Bytes32 rootHash, final Bytes rootLocation) {
     this.nodeFactory = nodeFactory;
+    final Bytes32 emptyTrieNodeHash = MerkleTrie.currentEmptyTrieNodeHash();
     this.root =
-        rootHash.equals(EMPTY_TRIE_NODE_HASH)
+        rootHash.equals(emptyTrieNodeHash)
             ? NullNode.instance()
             : new StoredNode<>(nodeFactory, rootLocation, rootHash);
   }
@@ -79,8 +80,9 @@ public abstract class StoredMerkleTrie<K extends Bytes, V> implements MerkleTrie
    */
   public StoredMerkleTrie(final NodeFactory<V> nodeFactory, final Bytes32 rootHash) {
     this.nodeFactory = nodeFactory;
+    final Bytes32 emptyTrieNodeHash = MerkleTrie.currentEmptyTrieNodeHash();
     this.root =
-        rootHash.equals(EMPTY_TRIE_NODE_HASH)
+        rootHash.equals(emptyTrieNodeHash)
             ? NullNode.instance()
             : new StoredNode<>(nodeFactory, Bytes.EMPTY, rootHash);
   }
@@ -153,8 +155,9 @@ public abstract class StoredMerkleTrie<K extends Bytes, V> implements MerkleTrie
     }
     // Reset root so dirty nodes can be garbage collected
     final Bytes32 rootHash = root.getHash();
+    final Bytes32 emptyTrieNodeHash = MerkleTrie.currentEmptyTrieNodeHash();
     this.root =
-        rootHash.equals(EMPTY_TRIE_NODE_HASH)
+        rootHash.equals(emptyTrieNodeHash)
             ? NullNode.instance()
             : new StoredNode<>(nodeFactory, Bytes.EMPTY, rootHash);
   }

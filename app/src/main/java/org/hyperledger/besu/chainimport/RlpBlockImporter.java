@@ -17,7 +17,9 @@ package org.hyperledger.besu.chainimport;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import org.hyperledger.besu.controller.BesuController;
+import org.hyperledger.besu.consensus.merge.blockcreation.MergeMiningCoordinator;
 import org.hyperledger.besu.ethereum.ProtocolContext;
+import org.hyperledger.besu.ethereum.blockcreation.MiningCoordinator;
 import org.hyperledger.besu.ethereum.chain.MutableBlockchain;
 import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
@@ -25,6 +27,7 @@ import org.hyperledger.besu.ethereum.core.BlockHeaderFunctions;
 import org.hyperledger.besu.ethereum.core.BlockImporter;
 import org.hyperledger.besu.ethereum.core.Difficulty;
 import org.hyperledger.besu.ethereum.core.Transaction;
+import org.hyperledger.besu.ethereum.core.Withdrawal;
 import org.hyperledger.besu.ethereum.mainnet.BlockHeaderValidator;
 import org.hyperledger.besu.ethereum.mainnet.BlockImportResult;
 import org.hyperledger.besu.ethereum.mainnet.HeaderValidationMode;
@@ -38,6 +41,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -47,6 +51,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Stopwatch;
+import org.apache.tuweni.bytes.Bytes32;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -102,6 +107,34 @@ public class RlpBlockImporter implements Closeable {
       final long startBlock,
       final long endBlock)
       throws IOException {
+    return importBlockchain(blocks, besuController, skipPowValidation, startBlock, endBlock, false);
+  }
+
+  /**
+   * Import blockchain.
+   *
+   * @param blocks the blocks
+   * @param besuController the besu controller
+   * @param skipPowValidation the skip pow validation
+   * @param startBlock the start block
+   * @param endBlock the end block
+   * @param replayAsNewBlocks when true, treats imported RLP blocks as replay input and rebuilds
+   *     fresh blocks from their bodies
+   * @return the rlp block importer - import result
+   * @throws IOException the io exception
+   */
+  public RlpBlockImporter.ImportResult importBlockchain(
+      final Path blocks,
+      final BesuController besuController,
+      final boolean skipPowValidation,
+      final long startBlock,
+      final long endBlock,
+      final boolean replayAsNewBlocks)
+      throws IOException {
+    if (replayAsNewBlocks) {
+      return replayBlockchain(blocks, besuController, startBlock, endBlock);
+    }
+
     final ProtocolSchedule protocolSchedule = besuController.getProtocolSchedule();
     final ProtocolContext context = besuController.getProtocolContext();
     final MutableBlockchain blockchain = context.getBlockchain();
@@ -182,6 +215,173 @@ public class RlpBlockImporter implements Closeable {
       logProgress(blockchain.getChainHeadBlockNumber());
       return new RlpBlockImporter.ImportResult(
           blockchain.getChainHead().getTotalDifficulty(), count);
+    }
+  }
+
+  private RlpBlockImporter.ImportResult replayBlockchain(
+      final Path blocks,
+      final BesuController besuController,
+      final long startBlock,
+      final long endBlock)
+      throws IOException {
+    final ProtocolSchedule protocolSchedule = besuController.getProtocolSchedule();
+    final ProtocolContext context = besuController.getProtocolContext();
+    final MutableBlockchain blockchain = context.getBlockchain();
+    final MiningCoordinator miningCoordinator = besuController.getMiningCoordinator();
+    int count = 0;
+    final BlockHeaderFunctions blockHeaderFunctions =
+        ScheduleBasedBlockHeaderFunctions.create(protocolSchedule);
+
+    BlockHeader replayParentHeader = blockchain.getChainHeadHeader();
+    try (final RawBlockIterator iterator = new RawBlockIterator(blocks, blockHeaderFunctions)) {
+      while (iterator.hasNext()) {
+        final Block sourceBlock = iterator.next();
+        final BlockHeader sourceHeader = sourceBlock.getHeader();
+        final long blockNumber = sourceHeader.getNumber();
+        if (blockNumber == BlockHeader.GENESIS_BLOCK_NUMBER
+            || blockNumber < startBlock
+            || blockNumber >= endBlock) {
+          continue;
+        }
+
+        extractSignatures(sourceBlock);
+
+        final Block replayBlock =
+            createReplayBlock(miningCoordinator, replayParentHeader, sourceBlock);
+        evaluateReplayBlock(
+            context, replayBlock, protocolSchedule.getByBlockHeader(replayBlock.getHeader()));
+
+        replayParentHeader = replayBlock.getHeader();
+        ++count;
+
+        if (replayBlock.getHeader().getNumber() % SEGMENT_SIZE == 0) {
+          logProgress(replayBlock.getHeader().getNumber());
+        }
+      }
+      logProgress(blockchain.getChainHeadBlockNumber());
+      return new RlpBlockImporter.ImportResult(
+          blockchain.getChainHead().getTotalDifficulty(), count);
+    }
+  }
+
+  private Block createReplayBlock(
+      final MiningCoordinator miningCoordinator,
+      final BlockHeader replayParentHeader,
+      final Block sourceBlock) {
+    final BlockHeader sourceHeader = sourceBlock.getHeader();
+    LOG.info(
+        "Replay createBlock input: parentNumber={} parentDifficulty={} sourceNumber={} sourceDifficulty={} coordinator={}",
+        replayParentHeader.getNumber(),
+        replayParentHeader.getDifficulty(),
+        sourceHeader.getNumber(),
+        sourceHeader.getDifficulty(),
+        miningCoordinator.getClass().getName());
+    final Block replayBlock;
+    try {
+      replayBlock = createReplayBlockByConsensusType(miningCoordinator, replayParentHeader, sourceBlock);
+    } catch (final RuntimeException ex) {
+      final Throwable cause = ex.getCause();
+      if (cause instanceof ArithmeticException
+          && cause.getMessage() != null
+          && cause.getMessage().contains("divide by zero")) {
+        LOG.error(
+            "Replay block creation failed with divide-by-zero. "
+                + "This usually indicates PoW block creation path with zero difficulty. "
+                + "parentNumber={} parentDifficulty={} sourceNumber={} sourceDifficulty={} coordinator={}",
+            replayParentHeader.getNumber(),
+            replayParentHeader.getDifficulty(),
+            sourceHeader.getNumber(),
+            sourceHeader.getDifficulty(),
+            miningCoordinator.getClass().getName(),
+            ex);
+      }
+      throw ex;
+    }
+    if (sourceBlock.getBody().getTransactions().size()
+        != replayBlock.getBody().getTransactions().size()) {
+      throw new IllegalStateException(
+          "Unable to rebuild replay block "
+              + sourceBlock.getHeader().getNumber()
+              + ". Some transactions were dropped during block creation.");
+    }
+    return replayBlock;
+  }
+
+  private Block createReplayBlockByConsensusType(
+      final MiningCoordinator miningCoordinator,
+      final BlockHeader replayParentHeader,
+      final Block sourceBlock) {
+    if (isMergeReplayBlock(miningCoordinator, sourceBlock.getHeader())) {
+      LOG.info(
+          "Replay merge-aware creation branch activated at source block {}",
+          sourceBlock.getHeader().getNumber());
+      return createMergeReplayBlock(
+          (MergeMiningCoordinator) miningCoordinator, replayParentHeader, sourceBlock);
+    }
+
+    return miningCoordinator
+        .createBlock(
+            replayParentHeader,
+            sourceBlock.getBody().getTransactions(),
+            sourceBlock.getBody().getOmmers())
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "Unable to rebuild replay block from imported RLP block "
+                        + sourceBlock.getHeader().getNumber()));
+  }
+
+  private boolean isMergeReplayBlock(
+      final MiningCoordinator miningCoordinator, final BlockHeader sourceHeader) {
+    return miningCoordinator instanceof MergeMiningCoordinator
+        && sourceHeader.getDifficulty().equals(Difficulty.ZERO);
+  }
+
+  private Block createMergeReplayBlock(
+      final MergeMiningCoordinator mergeMiningCoordinator,
+      final BlockHeader replayParentHeader,
+      final Block sourceBlock) {
+    final BlockHeader sourceHeader = sourceBlock.getHeader();
+    final Bytes32 prevRandao = sourceHeader.getPrevRandao().orElse(sourceHeader.getMixHash());
+    final long timestamp = sourceHeader.getTimestamp();
+    final Optional<List<Withdrawal>> withdrawals = sourceBlock.getBody().getWithdrawals();
+    final Optional<Bytes32> parentBeaconBlockRoot = sourceHeader.getParentBeaconBlockRoot();
+
+    return mergeMiningCoordinator
+        .createBlockForReplayMerge(
+            replayParentHeader,
+            sourceBlock.getBody().getTransactions(),
+            prevRandao,
+            timestamp,
+            withdrawals,
+            parentBeaconBlockRoot)
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "Unable to rebuild replay merge block from imported RLP block "
+                        + sourceHeader.getNumber()));
+  }
+
+  private void evaluateReplayBlock(
+      final ProtocolContext context, final Block replayBlock, final ProtocolSpec protocolSpec) {
+    try {
+      cumulativeTimer.start();
+      segmentTimer.start();
+      final BlockImporter blockImporter = protocolSpec.getBlockImporter();
+      final BlockImportResult blockImported =
+          blockImporter.importBlock(context, replayBlock, HeaderValidationMode.NONE);
+      if (!blockImported.isImported()) {
+        throw new IllegalStateException(
+            "Replay block import failed at block number "
+                + replayBlock.getHeader().getNumber()
+                + ".");
+      }
+    } finally {
+      cumulativeTimer.stop();
+      segmentTimer.stop();
+      final long thisGas = replayBlock.getHeader().getGasUsed();
+      cumulativeGas += thisGas;
+      segmentGas += thisGas;
     }
   }
 

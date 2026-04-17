@@ -14,8 +14,6 @@
  */
 package org.hyperledger.besu.ethereum.trie.patricia;
 
-import static org.hyperledger.besu.crypto.Hash.keccak256;
-
 import org.hyperledger.besu.ethereum.rlp.BytesValueRLPOutput;
 import org.hyperledger.besu.ethereum.rlp.RLP;
 import org.hyperledger.besu.ethereum.trie.LocationNodeVisitor;
@@ -24,6 +22,7 @@ import org.hyperledger.besu.ethereum.trie.NodeFactory;
 import org.hyperledger.besu.ethereum.trie.NodeVisitor;
 import org.hyperledger.besu.ethereum.trie.NullNode;
 import org.hyperledger.besu.ethereum.trie.PathNodeVisitor;
+import org.hyperledger.besu.ethereum.trie.hash.TrieHashFunctionHolder;
 
 import java.lang.ref.SoftReference;
 import java.lang.ref.WeakReference;
@@ -160,7 +159,7 @@ public class BranchNode<V> implements Node<V> {
         return hashed;
       }
     }
-    final Bytes32 hashed = keccak256(getEncodedBytes());
+    final Bytes32 hashed = TrieHashFunctionHolder.get().hash(getEncodedBytes());
     hash = new SoftReference<>(hashed);
     return hashed;
   }

@@ -235,6 +235,28 @@ public class MergeCoordinator implements MergeMiningCoordinator, BadChainListene
   }
 
   @Override
+  public Optional<Block> createBlockForReplayMerge(
+      final BlockHeader parentHeader,
+      final List<Transaction> transactions,
+      final Bytes32 prevRandao,
+      final Long timestamp,
+      final Optional<List<Withdrawal>> withdrawals,
+      final Optional<Bytes32> parentBeaconBlockRoot) {
+    final MergeBlockCreator mergeBlockCreator =
+        this.mergeBlockCreatorFactory.forParams(parentHeader, miningConfiguration.getCoinbase());
+    return Optional.of(
+        mergeBlockCreator
+            .createBlock(
+                Optional.of(transactions),
+                prevRandao,
+                timestamp,
+                withdrawals,
+                parentBeaconBlockRoot,
+                parentHeader)
+            .getBlock());
+  }
+
+  @Override
   public void changeTargetGasLimit(final Long newTargetGasLimit) {
     if (AbstractGasLimitSpecification.isValidTargetGasLimit(newTargetGasLimit)) {
       this.miningConfiguration.setTargetGasLimit(newTargetGasLimit);

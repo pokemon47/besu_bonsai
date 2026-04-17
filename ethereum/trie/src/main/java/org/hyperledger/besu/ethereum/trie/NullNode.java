@@ -74,7 +74,7 @@ public class NullNode<V> implements Node<V> {
 
   @Override
   public Bytes32 getHash() {
-    return MerkleTrie.EMPTY_TRIE_NODE_HASH;
+    return MerkleTrie.currentEmptyTrieNodeHash();
   }
 
   @Override

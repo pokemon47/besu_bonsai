@@ -121,13 +121,25 @@ public class TransitionCoordinator extends TransitionUtils<MiningCoordinator>
       final List<BlockHeader> ommers) {
     return dispatchFunctionAccordingToMergeState(
         (MiningCoordinator coordinator) ->
-            miningCoordinator.createBlock(parentHeader, transactions, ommers));
+            coordinator.createBlock(parentHeader, transactions, ommers));
   }
 
   @Override
   public Optional<Block> createBlock(final BlockHeader parentHeader, final long timestamp) {
     return dispatchFunctionAccordingToMergeState(
         (MiningCoordinator coordinator) -> coordinator.createBlock(parentHeader, timestamp));
+  }
+
+  @Override
+  public Optional<Block> createBlockForReplayMerge(
+      final BlockHeader parentHeader,
+      final List<Transaction> transactions,
+      final Bytes32 prevRandao,
+      final Long timestamp,
+      final Optional<List<Withdrawal>> withdrawals,
+      final Optional<Bytes32> parentBeaconBlockRoot) {
+    return mergeCoordinator.createBlockForReplayMerge(
+        parentHeader, transactions, prevRandao, timestamp, withdrawals, parentBeaconBlockRoot);
   }
 
   @Override

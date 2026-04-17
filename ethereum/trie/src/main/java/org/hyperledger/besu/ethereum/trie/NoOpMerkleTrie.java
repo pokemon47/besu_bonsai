@@ -77,7 +77,7 @@ public class NoOpMerkleTrie<K extends Bytes, V> implements MerkleTrie<K, V> {
 
   @Override
   public Bytes32 getRootHash() {
-    return EMPTY_TRIE_NODE_HASH;
+    return MerkleTrie.currentEmptyTrieNodeHash();
   }
 
   @Override

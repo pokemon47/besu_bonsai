@@ -16,6 +16,7 @@ package org.hyperledger.besu.ethereum.proof;
 
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
+import org.hyperledger.besu.ethereum.proof.hashing.ProofPathHashingHolder;
 import org.hyperledger.besu.ethereum.rlp.RLP;
 import org.hyperledger.besu.ethereum.trie.InnerNodeDiscoveryManager;
 import org.hyperledger.besu.ethereum.trie.InnerNodeDiscoveryManager.InnerNode;
@@ -66,7 +67,7 @@ public class WorldStateProofProvider {
     if (!worldStateStorageCoordinator.isWorldStateAvailable(worldStateRoot, null)) {
       return Optional.empty();
     } else {
-      final Hash accountHash = accountAddress.addressHash();
+      final Hash accountHash = ProofPathHashingHolder.get().accountTrieKey(accountAddress);
       final Proof<Bytes> accountProof =
           newAccountStateTrie(worldStateRoot).getValueWithProof(accountHash);
 
@@ -93,7 +94,10 @@ public class WorldStateProofProvider {
     final NavigableMap<UInt256, Proof<Bytes>> storageProofs =
         new TreeMap<>(Comparator.comparing(Bytes32::toHexString));
     accountStorageKeys.forEach(
-        key -> storageProofs.put(key, storageTrie.getValueWithProof(Hash.hash(key))));
+        key ->
+            storageProofs.put(
+                key,
+                storageTrie.getValueWithProof(ProofPathHashingHolder.get().storageTrieKey(key))));
     return storageProofs;
   }
 
@@ -184,7 +188,7 @@ public class WorldStateProofProvider {
     // reconstruct a part of the trie with the proof
     final Map<Bytes32, Bytes> proofsEntries = new HashMap<>();
     for (Bytes proof : proofs) {
-      proofsEntries.put(Hash.hash(proof), proof);
+      proofsEntries.put(ProofPathHashingHolder.get().proofNodeIdentity(proof), proof);
     }
 
     if (keys.isEmpty()) {

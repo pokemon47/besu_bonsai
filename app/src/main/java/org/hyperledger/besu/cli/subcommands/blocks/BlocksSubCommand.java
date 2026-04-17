@@ -185,6 +185,12 @@ public class BlocksSubCommand implements Runnable {
     private final Boolean runBesu = false;
 
     @Option(
+        names = "--replay",
+        description =
+            "Replay imported RLP blocks as new locally built blocks instead of importing original headers directly.")
+    private final Boolean replayRlpAsNewBlocks = false;
+
+    @Option(
         names = "--start-block",
         paramLabel = DefaultCommandValues.MANDATORY_LONG_FORMAT_HELP,
         description =
@@ -307,7 +313,7 @@ public class BlocksSubCommand implements Runnable {
       parentCommand
           .rlpBlockImporter
           .get()
-          .importBlockchain(path, controller, skipPow, startBlock, endBlock);
+          .importBlockchain(path, controller, skipPow, startBlock, endBlock, replayRlpAsNewBlocks);
     }
 
     private void importEra1Blocks(final BesuController controller, final Path path)

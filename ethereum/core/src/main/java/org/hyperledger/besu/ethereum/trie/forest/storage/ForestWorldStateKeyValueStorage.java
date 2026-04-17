@@ -66,7 +66,7 @@ public class ForestWorldStateKeyValueStorage implements WorldStateKeyValueStorag
   }
 
   private Optional<Bytes> getTrieNode(final Bytes32 nodeHash) {
-    if (nodeHash.equals(MerkleTrie.EMPTY_TRIE_NODE_HASH)) {
+    if (nodeHash.equals(MerkleTrie.currentEmptyTrieNodeHash())) {
       return Optional.of(MerkleTrie.EMPTY_TRIE_NODE);
     } else {
       return keyValueStorage.get(nodeHash.toArrayUnsafe()).map(Bytes::wrap);
@@ -79,7 +79,7 @@ public class ForestWorldStateKeyValueStorage implements WorldStateKeyValueStorag
   }
 
   public Optional<Bytes> getNodeData(final Bytes32 hash) {
-    if (hash.equals(MerkleTrie.EMPTY_TRIE_NODE_HASH)) {
+    if (hash.equals(MerkleTrie.currentEmptyTrieNodeHash())) {
       return Optional.of(MerkleTrie.EMPTY_TRIE_NODE);
     } else if (hash.equals(Hash.EMPTY)) {
       return Optional.of(Bytes.EMPTY);
@@ -167,7 +167,7 @@ public class ForestWorldStateKeyValueStorage implements WorldStateKeyValueStorag
     }
 
     public Updater putAccountStateTrieNode(final Bytes32 nodeHash, final Bytes node) {
-      if (nodeHash.equals(MerkleTrie.EMPTY_TRIE_NODE_HASH)) {
+      if (nodeHash.equals(MerkleTrie.currentEmptyTrieNodeHash())) {
         // Don't save empty nodes
         return this;
       }
@@ -182,7 +182,7 @@ public class ForestWorldStateKeyValueStorage implements WorldStateKeyValueStorag
     }
 
     public Updater putAccountStorageTrieNode(final Bytes32 nodeHash, final Bytes node) {
-      if (nodeHash.equals(MerkleTrie.EMPTY_TRIE_NODE_HASH)) {
+      if (nodeHash.equals(MerkleTrie.currentEmptyTrieNodeHash())) {
         // Don't save empty nodes
         return this;
       }

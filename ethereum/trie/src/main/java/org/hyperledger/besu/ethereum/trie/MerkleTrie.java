@@ -14,9 +14,8 @@
  */
 package org.hyperledger.besu.ethereum.trie;
 
-import static org.hyperledger.besu.crypto.Hash.keccak256;
-
 import org.hyperledger.besu.ethereum.rlp.RLP;
+import org.hyperledger.besu.ethereum.trie.hash.TrieHashFunctionHolder;
 
 import java.util.Map;
 import java.util.Optional;
@@ -32,7 +31,11 @@ import org.apache.tuweni.bytes.Bytes32;
 public interface MerkleTrie<K, V> {
 
   Bytes EMPTY_TRIE_NODE = RLP.NULL;
-  Bytes32 EMPTY_TRIE_NODE_HASH = keccak256(EMPTY_TRIE_NODE);
+  Bytes32 EMPTY_TRIE_NODE_HASH = TrieHashFunctionHolder.get().emptyTrieNodeHash();
+
+  static Bytes32 currentEmptyTrieNodeHash() {
+    return TrieHashFunctionHolder.get().emptyTrieNodeHash();
+  }
 
   /**
    * Returns an {@code Optional} of value mapped to the hash if it exists; otherwise empty.

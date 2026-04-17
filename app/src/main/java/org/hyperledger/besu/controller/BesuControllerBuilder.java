@@ -84,6 +84,7 @@ import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSpec;
 import org.hyperledger.besu.ethereum.p2p.config.NetworkingConfiguration;
 import org.hyperledger.besu.ethereum.p2p.config.SubProtocolConfiguration;
+import org.hyperledger.besu.ethereum.proof.hashing.ProofPathHashingConfigurator;
 import org.hyperledger.besu.ethereum.storage.StorageProvider;
 import org.hyperledger.besu.ethereum.storage.keyvalue.KeyValueSegmentIdentifier;
 import org.hyperledger.besu.ethereum.transaction.TransactionSimulator;
@@ -620,6 +621,7 @@ public abstract class BesuControllerBuilder implements MiningConfigurationOverri
     prepForBuild();
 
     final ProtocolSchedule protocolSchedule = createProtocolSchedule();
+    configureProofPathHashingForForestBeforeGenesis();
 
     final VariablesStorage variablesStorage = storageProvider.createVariablesStorage();
 
@@ -948,6 +950,16 @@ public abstract class BesuControllerBuilder implements MiningConfigurationOverri
             () ->
                 GenesisState.fromConfig(
                     dataStorageConfiguration, genesisConfig, protocolSchedule, codeCache));
+  }
+
+  private void configureProofPathHashingForForestBeforeGenesis() {
+    if (DataStorageFormat.FOREST.equals(dataStorageConfiguration.getDataStorageFormat())) {
+      // Configure before genesis creation so the genesis header's state root and the persisted
+      // genesis world state are produced under the same hash policy.
+      // Without this early initialization, Poseidon mode can fail at replay block 1 when trying
+      // to load parent (genesis) world state by state root.
+      ProofPathHashingConfigurator.configureForForestFromSystemProperties();
+    }
   }
 
   private TrieLogPruner createTrieLogPruner(

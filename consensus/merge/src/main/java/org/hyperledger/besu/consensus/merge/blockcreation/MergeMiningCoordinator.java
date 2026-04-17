@@ -23,6 +23,7 @@ import org.hyperledger.besu.ethereum.BlockProcessingResult;
 import org.hyperledger.besu.ethereum.blockcreation.MiningCoordinator;
 import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
+import org.hyperledger.besu.ethereum.core.Transaction;
 import org.hyperledger.besu.ethereum.core.Withdrawal;
 import org.hyperledger.besu.ethereum.eth.manager.EthScheduler;
 
@@ -50,6 +51,25 @@ public interface MergeMiningCoordinator extends MiningCoordinator {
       final Long timestamp,
       final Bytes32 prevRandao,
       final Address feeRecipient,
+      final Optional<List<Withdrawal>> withdrawals,
+      final Optional<Bytes32> parentBeaconBlockRoot);
+
+  /**
+   * Creates a merge-style block directly for replay/import workflows.
+   *
+   * @param parentHeader the parent header
+   * @param transactions transactions to include
+   * @param prevRandao the randao value required for merge block creation
+   * @param timestamp the block timestamp
+   * @param withdrawals optional withdrawals
+   * @param parentBeaconBlockRoot optional parent beacon block root
+   * @return the built block
+   */
+  Optional<Block> createBlockForReplayMerge(
+      final BlockHeader parentHeader,
+      final List<Transaction> transactions,
+      final Bytes32 prevRandao,
+      final Long timestamp,
       final Optional<List<Withdrawal>> withdrawals,
       final Optional<Bytes32> parentBeaconBlockRoot);
 
