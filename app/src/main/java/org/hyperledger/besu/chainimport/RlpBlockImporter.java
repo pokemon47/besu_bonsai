@@ -39,7 +39,6 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -275,7 +274,8 @@ public class RlpBlockImporter implements Closeable {
         miningCoordinator.getClass().getName());
     final Block replayBlock;
     try {
-      replayBlock = createReplayBlockByConsensusType(miningCoordinator, replayParentHeader, sourceBlock);
+      replayBlock =
+          createReplayBlockByConsensusType(miningCoordinator, replayParentHeader, sourceBlock);
     } catch (final RuntimeException ex) {
       final Throwable cause = ex.getCause();
       if (cause instanceof ArithmeticException

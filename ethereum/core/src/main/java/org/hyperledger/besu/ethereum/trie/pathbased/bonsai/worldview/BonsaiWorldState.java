@@ -25,6 +25,7 @@ import org.hyperledger.besu.ethereum.trie.MerkleTrie;
 import org.hyperledger.besu.ethereum.trie.MerkleTrieException;
 import org.hyperledger.besu.ethereum.trie.NoOpMerkleTrie;
 import org.hyperledger.besu.ethereum.trie.NodeLoader;
+import org.hyperledger.besu.ethereum.trie.hash.TrieHashFunctionHolder;
 import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.BonsaiAccount;
 import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.BonsaiWorldStateProvider;
 import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.cache.BonsaiCachedMerkleTrieLoader;
@@ -248,7 +249,7 @@ public class BonsaiWorldState extends PathBasedWorldState {
       final Hash storageRoot =
           (accountOriginal == null
                   || worldStateUpdater.getStorageToClear().contains(updatedAddress))
-              ? Hash.EMPTY_TRIE_HASH
+              ? Hash.wrap(TrieHashFunctionHolder.get().emptyTrieNodeHash())
               : accountOriginal.getStorageRoot();
       final MerkleTrie<Bytes, Bytes> storageTrie =
           createTrie(
@@ -428,7 +429,9 @@ public class BonsaiWorldState extends PathBasedWorldState {
       final StorageSlotKey storageSlotKey) {
     return getWorldStateStorage()
         .getStorageValueByStorageSlotKey(
-            storageRootSupplier, ProofPathHashingHolder.get().accountTrieKey(address), storageSlotKey)
+            storageRootSupplier,
+            ProofPathHashingHolder.get().accountTrieKey(address),
+            storageSlotKey)
         .map(UInt256::fromBytes);
   }
 
@@ -475,7 +478,7 @@ public class BonsaiWorldState extends PathBasedWorldState {
 
   @Override
   protected Hash getEmptyTrieHash() {
-    return Hash.EMPTY_TRIE_HASH;
+    return Hash.wrap(TrieHashFunctionHolder.get().emptyTrieNodeHash());
   }
 
   @Override

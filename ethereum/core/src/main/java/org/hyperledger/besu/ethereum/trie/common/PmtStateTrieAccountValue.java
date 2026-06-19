@@ -21,6 +21,7 @@ import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
+import org.hyperledger.besu.ethereum.trie.hash.TrieHashFunctionHolder;
 
 import java.util.Objects;
 
@@ -84,7 +85,7 @@ public class PmtStateTrieAccountValue extends AbstractStateTrieAccountValue
     Bytes32 storageRoot;
     Bytes32 codeHash;
     if (in.nextIsNull()) {
-      storageRoot = Hash.EMPTY_TRIE_HASH;
+      storageRoot = TrieHashFunctionHolder.get().emptyTrieNodeHash();
       in.skipNext();
     } else {
       storageRoot = in.readBytes32();

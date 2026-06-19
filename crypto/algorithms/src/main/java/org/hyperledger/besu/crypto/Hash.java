@@ -18,6 +18,7 @@ import static org.hyperledger.besu.crypto.MessageDigestFactory.BLAKE2BF_ALG;
 import static org.hyperledger.besu.crypto.MessageDigestFactory.KECCAK256_ALG;
 import static org.hyperledger.besu.crypto.MessageDigestFactory.RIPEMD160_ALG;
 import static org.hyperledger.besu.crypto.MessageDigestFactory.SHA256_ALG;
+import static org.hyperledger.besu.crypto.MessageDigestFactory.SHA3_256_ALG;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -35,6 +36,8 @@ public abstract class Hash {
       Suppliers.memoize(() -> messageDigest(KECCAK256_ALG));
   private static final Supplier<MessageDigest> SHA256_SUPPLIER =
       Suppliers.memoize(() -> messageDigest(SHA256_ALG));
+  private static final Supplier<MessageDigest> SHA3_256_SUPPLIER =
+      Suppliers.memoize(() -> messageDigest(SHA3_256_ALG));
   private static final Supplier<MessageDigest> RIPEMD160_SUPPLIER =
       Suppliers.memoize(() -> messageDigest(RIPEMD160_ALG));
   private static final Supplier<MessageDigest> BLAKE2BF_SUPPLIER =
@@ -74,6 +77,16 @@ public abstract class Hash {
    */
   public static Bytes32 sha256(final Bytes input) {
     return Bytes32.wrap(digestUsingAlgorithm(input, SHA256_SUPPLIER));
+  }
+
+  /**
+   * Digest using NIST FIPS 202 SHA3-256.
+   *
+   * @param input The input bytes to produce the digest for.
+   * @return A digest.
+   */
+  public static Bytes32 sha3_256(final Bytes input) {
+    return Bytes32.wrap(digestUsingAlgorithm(input, SHA3_256_SUPPLIER));
   }
 
   /**

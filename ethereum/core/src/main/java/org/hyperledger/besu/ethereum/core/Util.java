@@ -21,6 +21,7 @@ import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.rlp.RLP;
 import org.hyperledger.besu.ethereum.trie.MerkleTrie;
+import org.hyperledger.besu.ethereum.trie.hash.TrieHashFunctionHolder;
 import org.hyperledger.besu.ethereum.trie.patricia.SimpleMerklePatriciaTrie;
 
 import java.util.List;
@@ -84,7 +85,7 @@ public class Util {
    */
   public static Hash getRootFromListOfBytes(final List<Bytes> bytes) {
     if (bytes.isEmpty()) {
-      return Hash.EMPTY_TRIE_HASH;
+      return Hash.wrap(TrieHashFunctionHolder.get().emptyTrieNodeHash());
     }
     final MerkleTrie<Bytes, Bytes> trie = new SimpleMerklePatriciaTrie<>(b -> b);
     IntStream.range(0, bytes.size())

@@ -18,11 +18,12 @@ import org.hyperledger.besu.datatypes.AccountValue;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.Wei;
+import org.hyperledger.besu.ethereum.proof.hashing.ProofPathHashingHolder;
 import org.hyperledger.besu.ethereum.rlp.RLP;
 import org.hyperledger.besu.ethereum.rlp.RLPException;
 import org.hyperledger.besu.ethereum.rlp.RLPInput;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
-import org.hyperledger.besu.ethereum.proof.hashing.ProofPathHashingHolder;
+import org.hyperledger.besu.ethereum.trie.hash.TrieHashFunctionHolder;
 import org.hyperledger.besu.ethereum.trie.pathbased.bonsai.storage.BonsaiWorldStateKeyValueStorage;
 import org.hyperledger.besu.ethereum.trie.pathbased.common.PathBasedAccount;
 import org.hyperledger.besu.ethereum.trie.pathbased.common.worldview.PathBasedWorldView;
@@ -107,7 +108,7 @@ public class BonsaiAccount extends PathBasedAccount {
         new Code(tracked.getCode()),
         true,
         codeCache);
-    this.storageRoot = Hash.EMPTY_TRIE_HASH;
+    this.storageRoot = Hash.wrap(TrieHashFunctionHolder.get().emptyTrieNodeHash());
     updatedStorage.putAll(tracked.getUpdatedStorage());
   }
 
@@ -142,7 +143,7 @@ public class BonsaiAccount extends PathBasedAccount {
 
   @Override
   public boolean isStorageEmpty() {
-    return Hash.EMPTY_TRIE_HASH.equals(storageRoot);
+    return Hash.wrap(TrieHashFunctionHolder.get().emptyTrieNodeHash()).equals(storageRoot);
   }
 
   @Override

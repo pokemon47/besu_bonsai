@@ -22,6 +22,7 @@ import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.ethereum.proof.hashing.ProofPathHashingHolder;
 import org.hyperledger.besu.ethereum.rlp.RLP;
 import org.hyperledger.besu.ethereum.trie.MerkleTrieException;
+import org.hyperledger.besu.ethereum.trie.hash.TrieHashFunctionHolder;
 import org.hyperledger.besu.ethereum.trie.pathbased.common.PathBasedAccount;
 import org.hyperledger.besu.ethereum.trie.pathbased.common.PathBasedValue;
 import org.hyperledger.besu.ethereum.trie.pathbased.common.storage.PathBasedWorldStateKeyValueStorage;
@@ -273,7 +274,7 @@ public abstract class PathBasedWorldStateUpdateAccumulator<ACCOUNT extends PathB
             hashAndSaveAccountPreImage(address),
             nonce,
             balance,
-            Hash.EMPTY_TRIE_HASH,
+            Hash.wrap(TrieHashFunctionHolder.get().emptyTrieNodeHash()),
             Hash.EMPTY,
             true);
     pathBasedValue.setUpdated(newAccount);

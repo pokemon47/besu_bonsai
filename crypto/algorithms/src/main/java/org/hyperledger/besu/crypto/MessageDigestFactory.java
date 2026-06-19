@@ -34,6 +34,9 @@ public class MessageDigestFactory {
   /** SHA-256 */
   public static final String SHA256_ALG = "SHA-256";
 
+  /** NIST FIPS 202 SHA3-256 */
+  public static final String SHA3_256_ALG = "SHA3-256";
+
   /** RipeMD-160 */
   public static final String RIPEMD160_ALG = "RIPEMD160";
 
@@ -57,6 +60,7 @@ public class MessageDigestFactory {
     return switch (algorithm) {
       case KECCAK256_ALG -> new Keccak.Digest256();
       case SHA256_ALG -> new SHA256.Digest();
+      case SHA3_256_ALG -> MessageDigest.getInstance(SHA3_256_ALG);
       case RIPEMD160_ALG -> new RIPEMD160.Digest();
       case BLAKE2BF_ALG -> new Blake2bfMessageDigest();
       default -> MessageDigest.getInstance(algorithm);

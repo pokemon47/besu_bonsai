@@ -20,6 +20,7 @@ import org.hyperledger.besu.datatypes.AccountValue;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.ethereum.rlp.RLPOutput;
+import org.hyperledger.besu.ethereum.trie.hash.TrieHashFunctionHolder;
 
 /** Represents the raw values associated with an account in the world state trie. */
 public abstract class AbstractStateTrieAccountValue implements AccountValue {
@@ -73,7 +74,7 @@ public abstract class AbstractStateTrieAccountValue implements AccountValue {
    */
   @Override
   public Hash getStorageRoot() {
-    return Hash.EMPTY_TRIE_HASH;
+    return Hash.wrap(TrieHashFunctionHolder.get().emptyTrieNodeHash());
   }
 
   @Override
