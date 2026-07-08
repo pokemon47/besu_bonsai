@@ -101,7 +101,7 @@ public class BonsaiAccount extends PathBasedAccount {
     super(
         context,
         tracked.getAddress(),
-        tracked.getAddressHash(),
+        ProofPathHashingHolder.get().accountTrieKey(tracked.getAddress()),
         tracked.getNonce(),
         tracked.getBalance(),
         tracked.getCodeHash(),
