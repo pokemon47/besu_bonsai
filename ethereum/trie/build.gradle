@@ -52,3 +52,37 @@ dependencies {
   testImplementation 'org.mockito:mockito-core'
   testImplementation 'org.mockito:mockito-junit-jupiter'
 }
+
+def poseidon2CliInstallDir = layout.buildDirectory.dir("install/besu-poseidon2-hash")
+
+tasks.register('installPoseidon2HashCli') {
+  dependsOn jar
+
+  inputs.files(tasks.named('jar'), configurations.runtimeClasspath)
+  outputs.dir(poseidon2CliInstallDir)
+
+  doLast {
+    def installDir = poseidon2CliInstallDir.get().asFile
+    def libDir = new File(installDir, 'lib')
+    def binDir = new File(installDir, 'bin')
+
+    delete installDir
+    libDir.mkdirs()
+    binDir.mkdirs()
+
+    copy {
+      from tasks.named('jar').get().archiveFile
+      from configurations.runtimeClasspath
+      into libDir
+    }
+
+    def script = new File(binDir, 'besu-poseidon2-hash')
+    script.text =
+      """#!/usr/bin/env sh
+APP_HOME=\$(CDPATH= cd -- "\$(dirname -- "\$0")/.." && pwd)
+CLASSPATH="\$APP_HOME/lib/*"
+exec java -cp "\$CLASSPATH" org.hyperledger.besu.ethereum.trie.hash.Poseidon2Bn254ByteHashCli "\$@"
+"""
+    script.setExecutable(true)
+  }
+}
