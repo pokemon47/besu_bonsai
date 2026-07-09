@@ -14,23 +14,16 @@
  */
 package org.hyperledger.besu.ethereum.proof.hashing;
 
-import static org.hyperledger.besu.crypto.Hash.sha3_256;
-
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
+import org.hyperledger.besu.ethereum.trie.hash.Poseidon2Bn254ByteHash;
 import org.hyperledger.besu.ethereum.trie.hash.Poseidon2TrieHashFunction;
 import org.hyperledger.besu.ethereum.trie.hash.TrieHashFunction;
 
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.units.bigints.UInt256;
 
-/**
- * Placeholder proof-path hashing policy for Poseidon2 mode.
- *
- * <p>Besu currently has no native Poseidon2 primitive in this repository. For phase-4 wiring and
- * replay-prep, this policy intentionally uses NIST SHA3-256 as a deterministic non-Keccak hash
- * policy until a real Poseidon2 primitive is introduced.
- */
+/** Proof-path hashing policy for Poseidon2 mode. */
 public final class Poseidon2ProofPathHashing implements ProofPathHashing {
   private static final TrieHashFunction TRIE_HASH_FUNCTION = new Poseidon2TrieHashFunction();
 
@@ -39,17 +32,17 @@ public final class Poseidon2ProofPathHashing implements ProofPathHashing {
 
   @Override
   public Hash accountTrieKey(final Address address) {
-    return Hash.wrap(sha3_256(address));
+    return Hash.wrap(Poseidon2Bn254ByteHash.hashBytesToBytes32(address));
   }
 
   @Override
   public Hash storageTrieKey(final UInt256 slotKey) {
-    return Hash.wrap(sha3_256(slotKey));
+    return Hash.wrap(Poseidon2Bn254ByteHash.hashBytesToBytes32(slotKey.toBytes()));
   }
 
   @Override
   public Hash proofNodeIdentity(final Bytes encodedProofNodeRlp) {
-    return Hash.wrap(sha3_256(encodedProofNodeRlp));
+    return Hash.wrap(Poseidon2Bn254ByteHash.hashBytesToBytes32(encodedProofNodeRlp));
   }
 
   @Override

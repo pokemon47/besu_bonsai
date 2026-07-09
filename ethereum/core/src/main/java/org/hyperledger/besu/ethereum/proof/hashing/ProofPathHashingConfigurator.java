@@ -30,8 +30,8 @@ public final class ProofPathHashingConfigurator {
    * Configures the active proof-path hashing policy from JVM system properties.
    *
    * <p>The property defaults to {@code keccak}. When set to {@code poseidon2}, the temporary
-   * phase-4 Poseidon2 placeholder policy is installed for proof-path hashing (NIST SHA3-256 until
-   * a real Poseidon2 primitive exists).
+   * phase-4 Poseidon2 placeholder policy is installed for proof-path hashing (NIST SHA3-256 until a
+   * real Poseidon2 primitive exists).
    */
   public static void configureFromSystemProperties() {
     if (!CONFIGURED.compareAndSet(false, true)) {
