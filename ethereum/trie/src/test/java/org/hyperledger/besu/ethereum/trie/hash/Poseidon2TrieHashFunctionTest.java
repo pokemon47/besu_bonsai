@@ -41,6 +41,16 @@ class Poseidon2TrieHashFunctionTest {
   }
 
   @Test
+  void emptyInputMatchesPoseidon2ByteAdapterAndNotSha3Placeholder() {
+    final Bytes input = Bytes.EMPTY;
+
+    final Bytes32 actual = HASH_FUNCTION.hash(input);
+
+    assertThat(actual).isEqualTo(Poseidon2Bn254ByteHash.hashBytesToBytes32(input));
+    assertThat(actual).isNotEqualTo(Hash.sha3_256(input));
+  }
+
+  @Test
   void differsFromOldSha3PlaceholderForRepresentativeNonEmptyInput() {
     final Bytes input = Bytes.fromHexString("0x01");
     assertThat(HASH_FUNCTION.hash(input))
