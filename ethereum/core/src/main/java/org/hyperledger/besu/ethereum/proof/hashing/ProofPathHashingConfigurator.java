@@ -50,4 +50,8 @@ public final class ProofPathHashingConfigurator {
   public static void configureForForestFromSystemProperties() {
     configureFromSystemProperties();
   }
+
+  static void resetForTesting() {
+    CONFIGURED.set(false);
+  }
 }
