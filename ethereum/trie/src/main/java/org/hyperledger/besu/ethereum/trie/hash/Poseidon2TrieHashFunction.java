@@ -14,21 +14,13 @@
  */
 package org.hyperledger.besu.ethereum.trie.hash;
 
-import static org.hyperledger.besu.crypto.Hash.sha3_256;
-
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
 
-/**
- * Placeholder trie hash policy for Poseidon2 mode.
- *
- * <p>Besu currently has no native Poseidon2 primitive in this repository. For phase-4 wiring and
- * replay-prep, this policy intentionally uses NIST SHA3-256 as a deterministic non-Keccak hash
- * policy until a real Poseidon2 primitive is introduced.
- */
+/** Trie hash policy for Poseidon2 mode. */
 public final class Poseidon2TrieHashFunction implements TrieHashFunction {
   @Override
   public Bytes32 hash(final Bytes input) {
-    return sha3_256(input);
+    return Poseidon2Bn254ByteHash.hashBytesToBytes32(input);
   }
 }
