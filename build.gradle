@@ -350,8 +350,10 @@ configure(allprojects - project(':platform')) {
    *
    */
   test {
+    // Phase 4F can opt into a larger test worker without changing the Gradle daemon heap.
+    def phase4fTestHeap = project.findProperty('phase4f.test.heap') ?: '4g'
     jvmArgs += [
-      '-Xmx4g',
+      "-Xmx${phase4fTestHeap}",
       '-XX:-UseGCOverheadLimit',
       // Mockito and jackson-databind do some strange reflection during tests.
       // This suppresses an illegal access warning.
